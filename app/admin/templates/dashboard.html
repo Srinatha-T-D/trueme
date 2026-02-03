@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TRUEME Admin Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-3xl font-bold mb-8 flex items-center gap-2">
+  🧠 TRUEME <span class="text-gray-500 text-xl">Admin Dashboard</span>
+</h1>
+
+<!-- ================= JS HELPERS ================= -->
+<script>
+  async function fetchJSON(url) {
+    const res = await fetch(url, { credentials: "same-origin" });
+
+    if (res.status === 401) {
+      window.location.href = "/admin/login";
+      return null;
+    }
+
+    if (!res.ok) return null;
+    return await res.json();
+  }
+
+  async function postAction(url) {
+    if (!confirm("Are you sure?")) return;
+
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin"
+    });
+
+    if (res.status === 401) {
+      window.location.href = "/admin/login";
+      return;
+    }
+
+    if (!res.ok) {
+      alert("Action failed");
+      return;
+    }
+
+    location.reload();
+  }
+</script>
+
+<!-- ================= STATS ================= -->
+<div id="stats" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"></div>
+
+<!-- ================= CHARTS ================= -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-3">👩 Female Verification Status</h2>
+    <div class="mx-auto" style="width:220px;height:220px;">
+      <canvas id="femaleChart"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-3">💰 Payout Overview</h2>
+    <canvas id="payoutChart"></canvas>
+    <p class="text-xs text-gray-500 mt-2 text-center">
+      No payouts recorded yet
+    </p>
+  </div>
+</div>
+
+<!-- ================= FEMALE REVIEW QUEUE ================= -->
+<div class="bg-white p-4 rounded shadow mb-10">
+  <h2 class="text-xl font-semibold mb-1">
+    🧾 Female Verification – Review Queue
+  </h2>
+  <p class="text-sm text-gray-500 mb-4">
+    All approvals and rejections happen here.
+  </p>
+
+  <table class="w-full text-sm border">
+    <thead>
+      <tr class="bg-gray-200 text-left">
+        <th class="p-2">Telegram ID</th>
+        <th class="p-2">Phone</th>
+        <th class="p-2">Email</th>
+        <th class="p-2">Status</th>
+        <th class="p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="females"></tbody>
+  </table>
+</div>
+
+<!-- ================= WITHDRAWALS (PLACEHOLDER) ================= -->
+<div class="bg-white p-4 rounded shadow">
+  <h2 class="text-xl font-semibold mb-4">💸 Pending Withdrawals</h2>
+
+  <table class="w-full text-sm border">
+    <thead>
+      <tr class="bg-gray-200 text-left">
+        <th class="p-2">ID</th>
+        <th class="p-2">User</th>
+        <th class="p-2">Amount</th>
+        <th class="p-2">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="4" class="p-4 text-center text-gray-500">
+          Withdrawals module not wired yet
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================= LOGIC ================= -->
+<script>
+  async function loadStats() {
+    const s = await fetchJSON("/admin/stats");
+    if (!s) return;
+
+    document.getElementById("stats").innerHTML = `
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">👥 Users</h3>
+        <p>
+          <a href="/admin/users" class="text-blue-600 hover:underline">
+            Total: ${s.users.total}
+          </a>
+        </p>
+        <p>
+          <a href="/admin/females" class="text-blue-600 hover:underline">
+            Verified Females: ${s.users.verified_females}
+          </a>
+        </p>
+        <p>Pending Verification: ${s.users.pending_females}</p>
+      </div>
+
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">💬 Chats</h3>
+        <p>Total: ${s.chats.total}</p>
+        <p>Active: ${s.chats.active}</p>
+      </div>
+
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">💰 Payouts</h3>
+        <p>Total: ₹${s.payouts.total}</p>
+        <p>Paid: ₹${s.payouts.paid}</p>
+        <p>Pending: ₹${s.payouts.pending}</p>
+      </div>
+    `;
+
+    // Female chart (unchanged)
+    new Chart(document.getElementById("femaleChart"), {
+      type: "doughnut",
+      data: {
+        labels: ["Verified", "Pending"],
+        datasets: [{
+          data: [
+            s.users.verified_females,
+            s.users.pending_females
+          ],
+          backgroundColor: ["#22c55e", "#facc15"]
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        cutout: "75%",
+        plugins: {
+          legend: { position: "bottom" }
+        }
+      }
+    });
+
+    // ✅ PAYOUT CHART FIX (ZERO-SAFE)
+    const paid = s.payouts.paid || 0;
+    const pending = s.payouts.pending || 0;
+
+    const payoutData =
+      paid === 0 && pending === 0
+        ? [0.1, 0.1]
+        : [paid, pending];
+
+    new Chart(document.getElementById("payoutChart"), {
+      type: "bar",
+      data: {
+        labels: ["Paid", "Pending"],
+        datasets: [{
+          label: "₹ Amount",
+          data: payoutData,
+          backgroundColor: ["#3b82f6", "#ef4444"]
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: v => v === 0.1 ? 0 : v
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const real =
+                  ctx.dataIndex === 0 ? paid : pending;
+                return `₹${real}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  async function loadFemales() {
+    const data = await fetchJSON("/admin/females/pending");
+    const tbody = document.getElementById("females");
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="p-4 text-center text-gray-500">
+            No pending female verifications 🎉
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(f => `
+      <tr class="border-t">
+        <td class="p-2">${f.telegram_id}</td>
+        <td class="p-2">${f.phone_number || "-"}</td>
+        <td class="p-2">${f.email || "-"}</td>
+        <td class="p-2">
+          <span class="px-2 py-1 rounded text-xs bg-yellow-200">
+            pending
+          </span>
+        </td>
+        <td class="p-2 flex gap-2">
+          <button
+            class="bg-green-600 text-white px-3 py-1 rounded"
+            onclick="postAction('/admin/females/${f.telegram_id}/approve')">
+            Approve
+          </button>
+          <button
+            class="bg-red-600 text-white px-3 py-1 rounded"
+            onclick="postAction('/admin/females/${f.telegram_id}/reject')">
+            Reject
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  loadStats();
+  loadFemales();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import RedirectResponse
+from app.config import ADMIN_SECRET
+
+router = APIRouter(prefix="/admin", tags=["Admin Auth"])
+
+
+@router.get("/login")
+async def login_page():
+    return """
+    <html>
+      <body style="font-family:sans-serif">
+        <h2>🔐 TRUEME Admin Login</h2>
+        <form method="post">
+          <input type="password" name="secret" placeholder="Admin Secret" />
+          <button type="submit">Login</button>
+        </form>
+      </body>
+    </html>
+    """
+
+
+@router.post("/login")
+async def login(request: Request, secret: str = Form(...)):
+    if secret != ADMIN_SECRET:
+        return "❌ Invalid secret"
+
+    request.session["admin"] = True
+    return RedirectResponse("/admin/ui", status_code=302)
+
+
+@router.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/admin/login", status_code=302)

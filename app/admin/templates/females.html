@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Females</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-2xl font-bold mb-6">👩 Verified Females</h1>
+
+<div class="bg-white p-4 rounded shadow">
+  <table class="w-full text-sm border">
+    <thead>
+      <tr class="bg-gray-200 text-left">
+        <th class="p-2">Telegram ID</th>
+        <th class="p-2">Name</th>
+        <th class="p-2">Phone</th>
+        <th class="p-2">Email</th>
+        <th class="p-2">Verified At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in females %}
+      <tr class="border-t">
+        <td class="p-2">{{ f.telegram_id }}</td>
+        <td class="p-2">{{ f.full_name }}</td>
+        <td class="p-2">{{ f.phone_number }}</td>
+        <td class="p-2">{{ f.email }}</td>
+        <td class="p-2">{{ f.updated_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if females|length == 0 %}
+    <div class="text-center text-gray-500 p-4">
+      No verified females yet.
+    </div>
+  {% endif %}
+</div>
+
+</body>
+</html>
