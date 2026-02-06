@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wallets • TRUEME Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-6">💼 Wallets</h1>
+
+<div class="bg-white p-6 rounded shadow overflow-x-auto">
+
+<table class="w-full text-sm border">
+  <thead class="bg-gray-200">
+    <tr>
+      <th class="p-2">User ID</th>
+      <th class="p-2">Total Earned</th>
+      <th class="p-2">Total Withdrawn</th>
+      <th class="p-2">Balance</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+</div>
+
+<a href="/admin/dashboard"
+   class="inline-block mt-6 text-blue-600 hover:underline">
+  ← Back to Dashboard
+</a>
+
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url, { credentials: "same-origin" });
+  if (res.status === 401) location.href = "/admin/login";
+  return res.json();
+}
+
+async function load() {
+  const data = await fetchJSON("/admin/wallets/data");
+  const tbody = document.getElementById("rows");
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="p-4 text-center text-gray-500">
+          No wallet data available
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(w => `
+    <tr class="border-t">
+      <td class="p-2">${w.user_id}</td>
+      <td class="p-2">₹${w.total_earned.toFixed(2)}</td>
+      <td class="p-2">₹${w.total_withdrawn.toFixed(2)}</td>
+      <td class="p-2 font-semibold ${
+        w.balance >= 0 ? 'text-green-600' : 'text-red-600'
+      }">
+        ₹${w.balance.toFixed(2)}
+      </td>
+    </tr>
+  `).join("");
+}
+
+load();
+</script>
+
+</body>
+</html>

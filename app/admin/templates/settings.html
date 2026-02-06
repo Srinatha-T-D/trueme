@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings • TRUEME Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+  ⚙️ Settings
+</h1>
+
+<div class="bg-white p-6 rounded shadow max-w-xl space-y-6">
+
+  <!-- Pause Matching -->
+  <div class="flex justify-between items-center">
+    <div>
+      <p class="font-medium">Pause Matching</p>
+      <p class="text-sm text-gray-500">Stops new chat pairings</p>
+    </div>
+    <input type="checkbox" id="pause_matching" class="w-5 h-5">
+  </div>
+
+  <!-- Pause Payments -->
+  <div class="flex justify-between items-center">
+    <div>
+      <p class="font-medium">Pause Payments</p>
+      <p class="text-sm text-gray-500">Disable Stars spending</p>
+    </div>
+    <input type="checkbox" id="pause_payments" class="w-5 h-5">
+  </div>
+
+  <!-- Commission -->
+  <div>
+    <label class="font-medium block mb-1">
+      Platform Commission (%)
+    </label>
+    <input
+      id="commission"
+      type="number"
+      min="0"
+      max="100"
+      class="w-full border rounded p-2"
+    >
+  </div>
+
+  <!-- Session Limit -->
+  <div>
+    <label class="font-medium block mb-1">
+      Max Session Duration (minutes)
+    </label>
+    <input
+      id="session_limit"
+      type="number"
+      min="1"
+      class="w-full border rounded p-2"
+    >
+  </div>
+
+  <button
+    onclick="saveSettings()"
+    class="bg-indigo-600 text-white px-4 py-2 rounded font-medium"
+  >
+    Save Settings
+  </button>
+
+</div>
+
+<a href="/admin/dashboard"
+   class="inline-block mt-6 text-blue-600 hover:underline">
+  ← Back to Dashboard
+</a>
+
+<script>
+async function fetchJSON(url, opts = {}) {
+  const res = await fetch(url, { credentials: "same-origin", ...opts });
+  if (res.status === 401) {
+    window.location.href = "/admin/login";
+    return null;
+  }
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function loadSettings() {
+  const s = await fetchJSON("/admin/settings/data");
+  if (!s) return;
+
+  document.getElementById("pause_matching").checked = s.pause_matching;
+  document.getElementById("pause_payments").checked = s.pause_payments;
+  document.getElementById("commission").value = s.commission;
+  document.getElementById("session_limit").value = s.session_limit;
+}
+
+async function saveSettings() {
+  const payload = {
+    pause_matching: document.getElementById("pause_matching").checked,
+    pause_payments: document.getElementById("pause_payments").checked,
+    commission: Number(document.getElementById("commission").value),
+    session_limit: Number(document.getElementById("session_limit").value),
+  };
+
+  const res = await fetchJSON("/admin/settings/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (res) alert("Settings saved");
+}
+
+loadSettings();
+</script>
+
+</body>
+</html>

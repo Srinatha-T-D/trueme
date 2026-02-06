@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sessions • TRUEME Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-6">💬 Sessions</h1>
+
+<div class="bg-white p-6 rounded shadow overflow-x-auto">
+
+<table class="w-full text-sm border">
+  <thead class="bg-gray-200">
+    <tr>
+      <th class="p-2">Session ID</th>
+      <th class="p-2">User A</th>
+      <th class="p-2">User B</th>
+      <th class="p-2">Started At</th>
+      <th class="p-2">Ended At</th>
+      <th class="p-2">Duration</th>
+      <th class="p-2">Status</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+</div>
+
+<a href="/admin/dashboard"
+   class="inline-block mt-6 text-blue-600 hover:underline">
+  ← Back to Dashboard
+</a>
+
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url, { credentials: "same-origin" });
+  if (res.status === 401) location.href="/admin/login";
+  return res.json();
+}
+
+function duration(start, end) {
+  if (!end) return "-";
+  const s = new Date(start);
+  const e = new Date(end);
+  const diff = Math.floor((e - s) / 1000);
+  const min = Math.floor(diff / 60);
+  const sec = diff % 60;
+  return `${min}m ${sec}s`;
+}
+
+async function load() {
+  const data = await fetchJSON("/admin/sessions/data");
+  const tbody = document.getElementById("rows");
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-4 text-center text-gray-500">
+          No sessions found
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(s => `
+    <tr class="border-t">
+      <td class="p-2">${s.id}</td>
+      <td class="p-2">${s.user_a}</td>
+      <td class="p-2">${s.user_b}</td>
+      <td class="p-2 text-xs">${s.started_at}</td>
+      <td class="p-2 text-xs">${s.ended_at || "-"}</td>
+      <td class="p-2">
+        ${duration(s.started_at, s.ended_at)}
+      </td>
+      <td class="p-2">
+        ${
+          s.ended_at
+          ? `<span class="px-2 py-1 text-xs bg-gray-200 rounded">ended</span>`
+          : `<span class="px-2 py-1 text-xs bg-green-200 rounded">active</span>`
+        }
+      </td>
+    </tr>
+  `).join("");
+}
+
+load();
+</script>
+
+</body>
+</html>

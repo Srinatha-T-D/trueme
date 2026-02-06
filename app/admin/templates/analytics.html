@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics • TRUEME Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-8">📊 Analytics</h1>
+
+<!-- ================= SUMMARY ================= -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+  <div class="bg-white p-4 rounded shadow">
+    <p class="text-sm text-gray-500">Total Withdrawals</p>
+    <p id="withdrawTotal" class="text-xl font-bold">₹0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded shadow">
+    <p class="text-sm text-gray-500">Withdrawals Count</p>
+    <p id="withdrawCount" class="text-xl font-bold">0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded shadow">
+    <p class="text-sm text-gray-500">Active Sessions</p>
+    <p id="activeSessions" class="text-xl font-bold">0</p>
+  </div>
+</div>
+
+<!-- ================= CHART ================= -->
+<div class="bg-white p-6 rounded shadow max-w-3xl">
+  <h2 class="font-semibold mb-4">Daily Revenue (Last 7 Days)</h2>
+  <canvas id="revenueChart"></canvas>
+</div>
+
+<a href="/admin/dashboard"
+   class="inline-block mt-6 text-blue-600 hover:underline">
+  ← Back to Dashboard
+</a>
+
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url, { credentials: "same-origin" });
+  if (res.status === 401) location.href="/admin/login";
+  return res.json();
+}
+
+async function load() {
+  const data = await fetchJSON("/admin/analytics/data");
+
+  // Summary
+  document.getElementById("withdrawTotal").innerText =
+    "₹" + Number(data.withdrawals.total).toFixed(2);
+
+  document.getElementById("withdrawCount").innerText =
+    data.withdrawals.count;
+
+  document.getElementById("activeSessions").innerText =
+    data.sessions.active;
+
+  // Chart
+  const labels = data.revenue.map(r => r.day);
+  const values = data.revenue.map(r => r.total);
+
+  new Chart(document.getElementById("revenueChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Revenue",
+        data: values,
+        tension: 0.3
+      }]
+    },
+    options: {
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+load();
+</script>
+
+</body>
+</html>

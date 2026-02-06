@@ -43,6 +43,7 @@ dp.include_router(debug_router)
 from app.admin.api import router as admin_api_router
 from app.admin.ui import router as admin_ui_router
 from app.admin.auth import router as admin_auth_router
+from app.admin.routes import router as admin_router
 
 from app.verification.routes import router as verification_router
 
@@ -50,6 +51,7 @@ app.include_router(admin_ui_router, prefix="/admin")
 app.include_router(admin_api_router, prefix="/admin")
 app.include_router(admin_auth_router, prefix="/admin")
 app.include_router(verification_router)
+app.include_router(admin_router)
 
 app.add_middleware(
     SessionMiddleware,

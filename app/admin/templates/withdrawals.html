@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Withdrawals • TRUEME</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-6">💸 Withdrawals</h1>
+
+<div class="bg-white p-6 rounded shadow overflow-x-auto">
+
+<table class="w-full text-sm border">
+<thead class="bg-gray-200">
+<tr>
+  <th>ID</th>
+  <th>User</th>
+  <th>Amount</th>
+  <th>Status</th>
+  <th>Proof</th>
+  <th>Payout</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+
+</div>
+
+<a href="/admin/dashboard" class="inline-block mt-6 text-blue-600">← Back</a>
+
+<script>
+async function fetchJSON(url, opts={}) {
+  const r = await fetch(url, { credentials:"same-origin", ...opts });
+  if (r.status === 401) location.href="/admin/login";
+  return r.json();
+}
+
+async function pay(id) {
+  const method = prompt("Payout method (upi / bank / crypto)");
+  const ref = prompt("Transaction reference / UTR / TXID");
+
+  if (!method || !ref) return;
+
+  await fetchJSON(`/admin/withdrawals/${id}/pay`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ method, ref })
+  });
+
+  load();
+}
+
+async function load() {
+  const data = await fetchJSON("/admin/withdrawals/data");
+  const tbody = document.getElementById("rows");
+
+  tbody.innerHTML = data.map(w => `
+    <tr class="border-t">
+      <td>${w.id}</td>
+      <td>${w.user_id}</td>
+      <td>₹${Number(w.amount).toFixed(2)}</td>
+      <td>${w.status}</td>
+      <td>${w.screenshot_url ? `<a href="${w.screenshot_url}" target="_blank">View</a>` : '-'}</td>
+      <td>
+        ${
+          w.status === 'approved'
+          ? `<button class="bg-indigo-600 text-white px-2 py-1 rounded"
+              onclick="pay(${w.id})">Mark Paid</button>`
+          : w.status === 'paid'
+            ? '✅ Paid'
+            : '-'
+        }
+      </td>
+    </tr>
+  `).join("");
+}
+
+load();
+</script>
+
+</body>
+</html>

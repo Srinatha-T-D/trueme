@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ledger • TRUEME Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+<h1 class="text-2xl font-bold mb-6">📒 Ledger</h1>
+
+<div class="bg-white p-6 rounded shadow mb-6 flex gap-4 items-end">
+  <div>
+    <label class="block text-sm font-medium mb-1">Filter by User ID</label>
+    <input
+      id="userFilter"
+      type="number"
+      class="border rounded p-2 text-sm"
+      placeholder="User ID"
+    >
+  </div>
+
+  <button
+    onclick="load()"
+    class="bg-indigo-600 text-white px-4 py-2 rounded"
+  >
+    Apply Filter
+  </button>
+
+  <button
+    onclick="clearFilter()"
+    class="text-sm text-gray-600 underline"
+  >
+    Clear
+  </button>
+</div>
+
+<div class="bg-white p-6 rounded shadow overflow-x-auto">
+
+<table class="w-full text-sm border">
+  <thead class="bg-gray-200">
+    <tr>
+      <th class="p-2">ID</th>
+      <th class="p-2">User ID</th>
+      <th class="p-2">Type</th>
+      <th class="p-2">Amount</th>
+      <th class="p-2">Reference</th>
+      <th class="p-2">Date</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+</div>
+
+<a href="/admin/dashboard"
+   class="inline-block mt-6 text-blue-600 hover:underline">
+  ← Back to Dashboard
+</a>
+
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url, { credentials: "same-origin" });
+  if (res.status === 401) location.href="/admin/login";
+  return res.json();
+}
+
+function clearFilter() {
+  document.getElementById("userFilter").value = "";
+  load();
+}
+
+async function load() {
+  const uid = document.getElementById("userFilter").value;
+  const url = uid
+    ? `/admin/ledger/data?user_id=${uid}`
+    : `/admin/ledger/data`;
+
+  const data = await fetchJSON(url);
+  const tbody = document.getElementById("rows");
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="p-4 text-center text-gray-500">
+          No ledger entries found
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(l => `
+    <tr class="border-t">
+      <td class="p-2">${l.id}</td>
+      <td class="p-2">${l.user_id}</td>
+      <td class="p-2">
+        <span class="px-2 py-1 rounded text-xs ${
+          l.type === 'earn' ? 'bg-green-200'
+          : l.type === 'spend' ? 'bg-blue-200'
+          : l.type === 'withdraw' ? 'bg-yellow-200'
+          : 'bg-gray-200'
+        }">
+          ${l.type}
+        </span>
+      </td>
+      <td class="p-2">
+        ₹${Number(l.amount).toFixed(2)}
+      </td>
+      <td class="p-2 text-xs">
+        ${l.ref || '-'}
+      </td>
+      <td class="p-2 text-xs">
+        ${l.created_at}
+      </td>
+    </tr>
+  `).join("");
+}
+
+load();
+</script>
+
+</body>
+</html>
