@@ -6,6 +6,12 @@ from aiogram.types import Update
 
 from app.config import BOT_TOKEN
 from app.config import ADMIN_SECRET
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 # -------------------------
 # FASTAPI APP (MUST BE FIRST)
@@ -28,6 +34,7 @@ from app.handlers.chat import router as chat_router
 from app.handlers.stop import router as stop_router
 from app.handlers.admin import router as admin_router
 from app.handlers.debug import router as debug_router
+from app.handlers.post_chat_actions import router as post_chat_router
 
 dp.include_router(start_router)
 dp.include_router(profile_router)
@@ -36,6 +43,13 @@ dp.include_router(chat_router)
 dp.include_router(stop_router)
 dp.include_router(admin_router)
 dp.include_router(debug_router)
+dp.include_router(post_chat_router)
+
+# -------------------------
+# STARS WEBHOOK
+# -------------------------
+from app.webhooks.stars import router as stars_router
+app.include_router(stars_router)
 
 # -------------------------
 # ADMIN API + UI (FASTAPI)
@@ -43,15 +57,14 @@ dp.include_router(debug_router)
 from app.admin.api import router as admin_api_router
 from app.admin.ui import router as admin_ui_router
 from app.admin.auth import router as admin_auth_router
-from app.admin.routes import router as admin_router
-
+from app.admin.routes import router as admin_routes_router
 from app.verification.routes import router as verification_router
 
 app.include_router(admin_ui_router, prefix="/admin")
 app.include_router(admin_api_router, prefix="/admin")
 app.include_router(admin_auth_router, prefix="/admin")
 app.include_router(verification_router)
-app.include_router(admin_router)
+app.include_router(admin_routes_router)
 
 app.add_middleware(
     SessionMiddleware,

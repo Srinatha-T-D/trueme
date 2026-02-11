@@ -1,72 +1,106 @@
+import logging
 from typing import Optional, Tuple
+
 from app.redis_client import redis_client
 
-MALE_QUEUE = "queue:male"
-FEMALE_SET = "online:female"
-BUSY_SET = "busy:users"
+logger = logging.getLogger("trueme.matchmaking")
 
 
 # -------------------------
-# QUEUE MANAGEMENT
+# Redis key helpers
 # -------------------------
-async def add_male_to_queue(user_id: int):
-    await redis_client.rpush(MALE_QUEUE, user_id)
+def pool_key() -> str:
+    return "matchmaking:pool"
 
 
-async def set_female_online(user_id: int):
-    await redis_client.sadd(FEMALE_SET, user_id)
+def user_role_key(user_id: int) -> str:
+    return f"user:{user_id}:role"
 
 
-async def set_female_offline(user_id: int):
-    await redis_client.srem(FEMALE_SET, user_id)
+def user_in_session_key(user_id: int) -> str:
+    return f"user:{user_id}:in_session"
 
 
 # -------------------------
-# ATOMIC MATCH (LUA)
+# Pool operations
 # -------------------------
-MATCH_LUA = """
-local male = redis.call('LPOP', KEYS[1])
-if not male then
-    return nil
-end
-
-local female = redis.call('SPOP', KEYS[2])
-if not female then
-    redis.call('LPUSH', KEYS[1], male)
-    return nil
-end
-
--- prevent double matches
-if redis.call('SISMEMBER', KEYS[3], male) == 1
-   or redis.call('SISMEMBER', KEYS[3], female) == 1 then
-    redis.call('LPUSH', KEYS[1], male)
-    redis.call('SADD', KEYS[2], female)
-    return nil
-end
-
-redis.call('SADD', KEYS[3], male, female)
-return { male, female }
-"""
+async def add_user_to_pool(user_id: int):
+    await redis_client.sadd(pool_key(), user_id)
+    logger.info(f"[MATCHMAKING] User {user_id} added to pool")
 
 
-async def match_users() -> Optional[Tuple[int, int]]:
-    result = await redis_client.eval(
-        MATCH_LUA,
-        3,
-        MALE_QUEUE,
-        FEMALE_SET,
-        BUSY_SET
-    )
+async def remove_user_from_pool(user_id: int):
+    await redis_client.srem(pool_key(), user_id)
+    logger.info(f"[MATCHMAKING] User {user_id} removed from pool")
 
-    if not result:
+
+async def get_pool_members():
+    members = await redis_client.smembers(pool_key())
+    return {int(m) for m in members}
+
+
+# -------------------------
+# Session checks (READ ONLY)
+# -------------------------
+async def is_user_in_session(user_id: int) -> bool:
+    return await redis_client.get(user_in_session_key(user_id)) == "1"
+
+
+# -------------------------
+# Core matcher (internal)
+# -------------------------
+async def _pick_match() -> Optional[Tuple[int, int]]:
+    pool = await get_pool_members()
+
+    males = []
+    females = []
+
+    for uid in pool:
+        if await is_user_in_session(uid):
+            continue
+
+        role = await redis_client.get(user_role_key(uid))
+        if role == "male":
+            males.append(uid)
+        elif role == "female":
+            females.append(uid)
+
+    if not males or not females:
         return None
 
-    male, female = result
-    return int(male), int(female)
+    male = males[0]
+    female = females[0]
+
+    logger.info(
+        f"[MATCHMAKING] MATCH FOUND → male={male}, female={female}"
+    )
+
+    return male, female
 
 
 # -------------------------
-# RELEASE USERS
+# PUBLIC API (used by flow.py)
+# -------------------------
+async def match_users() -> Optional[Tuple[int, int]]:
+    """
+    Compatibility wrapper.
+    DO NOT add session logic here.
+    """
+    return await _pick_match()
+
+
+# -------------------------
+# Release helpers
 # -------------------------
 async def release_users(user_a: int, user_b: int):
-    await redis_client.srem(BUSY_SET, user_a, user_b)
+    """
+    IMPORTANT:
+    - Does NOT touch in_session
+    - lifecycle.stop_session() is the ONLY authority
+    """
+    await remove_user_from_pool(user_a)
+    await remove_user_from_pool(user_b)
+
+    logger.info(
+        f"[MATCHMAKING] Released users {user_a} and {user_b}"
+    )
